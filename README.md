@@ -18,5 +18,4 @@ This repository provides a vectorized Forward-Backward Sweep (FBS) solver and co
 3. Run: `python main.py`
 
 ## Citation
-If you use this code in your research, please cite our IEEE paper:
-*(Once your paper is accepted, add your IEEE citation here)*
+If you use this code in your research, please consider citing our work. The full citation for the corresponding IEEE paper will be added upon publication.
