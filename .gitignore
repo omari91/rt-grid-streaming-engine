@@ -1,0 +1,10 @@
+# Credentials
+.env
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Data
+final_output/
