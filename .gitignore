@@ -8,3 +8,4 @@ __pycache__/
 
 # Data
 final_output/
+!final_output/run_metadata.json

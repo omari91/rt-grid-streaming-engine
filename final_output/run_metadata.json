@@ -1,0 +1,29 @@
+{
+  "platform": {
+    "system": "Darwin",
+    "release": "25.5.0",
+    "version": "Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:17 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T8142",
+    "machine": "arm64",
+    "processor": "arm",
+    "python_implementation": "CPython",
+    "python_version": "3.13.14",
+    "executable": "/Users/cliffordondieki/Coding/omariweb/.venv/bin/python"
+  },
+  "packages": {
+    "numpy": "2.3.5",
+    "pandas": "2.3.3",
+    "scipy": "1.16.3",
+    "pandapower": "3.4.0",
+    "matplotlib": "3.11.0",
+    "seaborn": "0.13.2"
+  },
+  "experiment": {
+    "seed": 42,
+    "stream_n": 500,
+    "global_trafo_limit_mw": 45.0,
+    "voltage_min_pu": 0.94,
+    "voltage_target_pu": 0.945,
+    "pf_q_ratio": 0.33,
+    "deadline_ms": 20.0
+  }
+}
