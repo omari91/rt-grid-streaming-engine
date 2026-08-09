@@ -1,6 +1,9 @@
-numpy
-pandas
-requests
-matplotlib
-seaborn
-pandapower
+numpy==2.4.6
+pandas==2.3.3
+scipy==1.18.0
+requests==2.34.2
+matplotlib==3.11.1
+seaborn==0.13.2
+pandapower==3.5.4
+numba==0.66.0
+llvmlite==0.48.0

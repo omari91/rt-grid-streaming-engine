@@ -2,10 +2,17 @@
 .env
 .DS_Store
 
+# Local tooling (not part of the paper's codebase)
+.claude/
+
 # Python
 __pycache__/
 *.pyc
 
-# Data
-final_output/
-!final_output/run_metadata.json
+# Data (large/regenerable outputs only; small summary CSVs backing the
+# paper's numbers are tracked directly)
+final_output/*.png
+final_output/audit_events.csv
+final_output/cycle_times.csv
+final_output/recall_audit_sample.csv
+final_output/throughput_scaling.csv

@@ -1,0 +1,2 @@
+noncritical_population,sample_size,sample_solver_failures,sample_violations_found,estimated_fn_rate,estimated_fn_rate_ci95_low,estimated_fn_rate_ci95_high,estimated_missed_violations_in_population
+16676,500,0,35,0.07,0.0507597429450181,0.09579718985191686,1167.3200000000002
