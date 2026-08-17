@@ -14,5 +14,15 @@ __pycache__/
 final_output/*.png
 final_output/audit_events.csv
 final_output/cycle_times.csv
+final_output/cycle_times_E*.csv
 final_output/recall_audit_sample.csv
 final_output/throughput_scaling.csv
+
+# LaTeX build artifacts (paper.tex/reference.bib are Overleaf-managed and
+# intentionally not tracked here; these are their local compile byproducts)
+*.aux
+*.bbl
+*.blg
+*.log
+missfont.log
+paper.pdf

@@ -1,24 +1,40 @@
 # rt-grid-streaming-engine
 
-Reference implementation for the paper: *"Streaming AC Verification for Real-Time Redispatch Monitoring: A Recall and Latency Study."*
+Reference implementation for the paper: *"Streaming AC Voltage-Risk Screening for Distribution Grids: Recall and Latency under Real Redispatch Events."*
 
-This repository implements a streaming AC power-flow verification pipeline: a fast, physics-free statistical event selector, combined with selective Newton-Raphson (NR) AC validation, evaluated on one year of real German TSO redispatch telemetry against the CIGRE medium-voltage (MV) benchmark network.
+This repository implements a streaming AC power-flow screening pipeline: a fast, physics-free statistical event selector, combined with selective Newton-Raphson (NR) AC validation, driven by one year of real German TSO redispatch telemetry applied to the CIGRE medium-voltage (MV) benchmark network. The redispatch events are real operational records; the resulting voltage outcomes are obtained from AC power-flow *simulation* on a benchmark network, not measured feeder telemetry — see "Experimental Scope" below.
 
 ## Key Features
 
-- **Real data:** Driven by real redispatch telemetry (`data/redispatch_1yr.csv`, N=20,586 events), not synthetic-only.
+- **Real event stream:** Driven by real redispatch telemetry (`data/redispatch_1yr.csv`, N=20,586 events), not synthetic-only.
 - **Physics-based validation:** Full AC Newton-Raphson power flow (with backward/forward-sweep fallback) on flagged events, not a surrogate.
+- **Pluggable operating-state models:** the same pipeline runs under a fixed baseline, a deterministic synthetic table, or real independently-sourced SimBench load profiles (see below), to test whether conclusions depend on how the network's background loading is generated.
 - **Measured, not assumed, detection recall:** A sampled audit with a Wilson-score confidence interval quantifies what the fast selector actually misses.
 - **Measured latency:** Per-path cycle-time distributions against a 20 ms control-cycle deadline.
 - **Reproducible:** Fixed seed, pinned dependency versions, and a SHA-256 hash of the input data recorded at run time.
 
+## Experimental Scope
+
+Each simulated event combines three distinct components: (1) a real redispatch record from German TSO operational data; (2) the CIGRE MV benchmark network, a standardised reproducible model, not a specific measured feeder; and (3) a network operating state (background loading) applied at the moment the event is evaluated. The voltage outcome is a **simulated voltage-limit violation**, not a claim of a real, measured grid violation. See `paper.tex`, Sec. "Experimental Scope and Terminology," for the full framing.
+
 ## Methodology
 
-The pipeline screens each incoming redispatch event with an $O(1)$ statistical filter (percentile and rate-of-change thresholds on event magnitude, no power-flow solve). Only flagged ("critical") events receive a full AC Newton-Raphson solve against the CIGRE MV benchmark network (15 buses, PV/wind DER), mapped onto the setpoint of the network's largest controllable generator. Three dispatch policies (baseline, droop, voltage-aware) are compared against this ground truth.
+The pipeline screens each incoming redispatch event with an $O(1)$ statistical filter (percentile and rate-of-change thresholds on event magnitude, no power-flow solve). Only flagged ("critical") events receive a full AC Newton-Raphson solve against the CIGRE MV benchmark network (15 buses, PV/wind DER), mapped onto the setpoint of the network's largest controllable generator. Three dispatch policies (baseline, droop, voltage-aware) are evaluated against this ground truth, though in practice they are dispatch-equivalent on this dataset (the curtailment gate never activates within this generator's capacity — see the paper's Discussion).
 
-The minimum steady-state voltage threshold (0.90 p.u.) is set to the legally compliant EN 50160:2022 §4.2.2.1 worst-case bound for low-voltage supply (230 V −15%), consistent with the ±10%/−15% envelope confirmed in VDE FNN Leitfaden Anhang C, Table 2 (*Langsame Spannungsänderung*).
+The minimum steady-state voltage threshold (0.90 p.u.) follows EN 50160:2022 §4.2.2.1's worst-case bound, defined there for low-voltage supply; we apply it at MV as a conservative proxy, consistent with the ±10% steady-state band the German MV connection code VDE-AR-N 4110 specifies directly at this voltage level.
 
-See `paper.tex` for the full methodology, results, and honestly-reported limitations (the selector's real detection recall is far from complete — see the paper's Results and Discussion sections).
+### Operating-state models (`engine.py`)
+
+The load-multiplier source is a pluggable `load_provider`, passed to `GridSimulator.run_streaming_pipeline()` and `run_recall_audit()`:
+
+- `FixedLoadProvider` — no operating-state variation; nominal CIGRE loads for every event (control condition, E1).
+- `SyntheticLoadProvider` — deterministic table hashed from the run seed and event index (main-study default, E2).
+- `EmpiricalSampledLoadProvider` — real SimBench load values, drawn i.i.d. per event, seeded (E3).
+- `TimeSeriesLoadProvider` — real SimBench load values, in their original time-ordered sequence (E4).
+
+`load_simbench_profile()` loads real, independently published load-profile data via the [`simbench`](https://pypi.org/project/simbench/) package (Meinecke et al. 2020, ODbL-1.0-licensed); no separate download is required, the profile CSVs ship inside the package.
+
+See `paper.tex` for the full methodology, results, and honestly-reported limitations (the selector's estimated detection recall is far from complete — see the paper's Results and Discussion sections).
 
 ## Prerequisites
 
@@ -48,6 +64,14 @@ See `paper.tex` for the full methodology, results, and honestly-reported limitat
    ```
 
    *Outputs (audit summary, recall audit, latency tables, figures, and a reproducibility header with pinned versions + input data hash) are saved to `final_output/`.*
+
+4. **(Optional) Run the operating-state experiment matrix (E1–E4):**
+
+   ```bash
+   python run_experiment_matrix.py
+   ```
+
+   *Runs the same event stream and pipeline under all four operating-state models (fixed, synthetic, SimBench i.i.d., SimBench time-series) and saves a per-experiment comparison (`final_output/experiment_matrix.csv`), including violation counts, sampled recall, latency percentiles, and the loading-vs-voltage / redispatch-vs-voltage correlations for each.*
 
 ## Citation
 

@@ -248,6 +248,74 @@ class PhysicsEngine:
 # ==============================================================================
 # SIMULATION CORE
 # ==============================================================================
+class SyntheticLoadProvider:
+    """Deterministic, reproducible hourly load-multiplier table, hashed from
+    the run seed and event index. This is the default operating-state model
+    used throughout the main study (E2)."""
+
+    def __init__(self, multipliers: np.ndarray, seed: int = RUN_SEED):
+        self.multipliers = multipliers
+        self.seed = seed
+
+    def get_multiplier(self, idx: int) -> float:
+        mi = int(hashlib.md5(f"{self.seed}_{idx}".encode()).hexdigest(), 16) % len(self.multipliers)
+        return float(self.multipliers[mi])
+
+
+class FixedLoadProvider:
+    """No operating-state variation: the network's nominal CIGRE loads are
+    used unchanged for every event. Control condition (E1) isolating how
+    much voltage-risk information the redispatch event carries on its own,
+    with background loading held fixed."""
+
+    def get_multiplier(self, idx: int) -> float:
+        return 1.0
+
+
+def load_simbench_profile(column: str = "G0-A_pload", scenario: int = 0) -> np.ndarray:
+    """Real, independently-published load-profile values from SimBench
+    (Meinecke et al. 2020, ODbL-1.0), used as the operating-state source for
+    E3/E4. Decoupled from SimBench's own grid topology: this returns only the
+    relative load-scaling time series, applied here to the unrelated CIGRE MV
+    network. `column` defaults to a general commercial/business profile
+    (BDEW G0-A), the closest standard category to an MV feeder mix."""
+    import simbench as sb
+
+    profiles = sb.get_all_simbench_profiles(scenario)["load"]
+    return profiles[column].to_numpy()
+
+
+class EmpiricalSampledLoadProvider:
+    """Real SimBench load values drawn i.i.d. (with replacement), seeded by
+    run seed and event index, breaking any correlation with event order.
+    Isolates whether the loading-voltage relationship reported under
+    SyntheticLoadProvider (E2) depends on that provider's own deterministic,
+    hashed construction, or holds under an operating-state source sampled
+    independently of the event stream (E3; see Sec. Limitations)."""
+
+    def __init__(self, values: np.ndarray, seed: int = RUN_SEED):
+        self.values = values
+        self.seed = seed
+
+    def get_multiplier(self, idx: int) -> float:
+        rng = np.random.default_rng([self.seed, idx])
+        return float(rng.choice(self.values))
+
+
+class TimeSeriesLoadProvider:
+    """Real SimBench load values used in their original time-ordered
+    sequence (event index modulo profile length), preserving the profile's
+    real temporal structure -- unlike EmpiricalSampledLoadProvider's i.i.d.
+    draws. Tests whether the loading-voltage relationship holds under a
+    realistic, time-varying operating state (E4)."""
+
+    def __init__(self, values: np.ndarray):
+        self.values = values
+
+    def get_multiplier(self, idx: int) -> float:
+        return float(self.values[idx % len(self.values)])
+
+
 class GridSimulator:
     def __init__(self):
         self.prop_ctrl = VoltageAwareController(DER_CAPACITY_MW)
@@ -272,17 +340,19 @@ class GridSimulator:
             1.20, 1.05, 0.81, 0.44
         ])
 
-    def run_streaming_pipeline(self, stream: np.ndarray):
+    def run_streaming_pipeline(self, stream: np.ndarray, load_provider=None):
+        if load_provider is None:
+            load_provider = SyntheticLoadProvider(self.load_multipliers)
         selector = OnlineSmartSelector(stream)
         records = []
         prev = float(stream[0]) if len(stream) else 0.0
 
         for idx, load in enumerate(stream):
             load = float(load)
-            
-            # Apply dynamic load mapping (using deterministic hash to keep events reproducible)
-            mult_idx = int(hashlib.md5(f"{RUN_SEED}_{idx}".encode()).hexdigest(), 16) % len(self.load_multipliers)
-            self.physics.set_dynamic_load(self.load_multipliers[mult_idx])
+
+            # Operating-state model is pluggable (Sec. Experimental Scope);
+            # default reproduces the deterministic synthetic multiplier table.
+            self.physics.set_dynamic_load(load_provider.get_multiplier(idx))
 
             t0 = time.perf_counter()
 
@@ -383,16 +453,18 @@ class GridSimulator:
         summary_df = pd.DataFrame([summary])
         return audited, summary_df
 
-    def run_recall_audit(self, cycle_df: pd.DataFrame, sample_size: int = 500, seed: int = RUN_SEED):
+    def run_recall_audit(self, cycle_df: pd.DataFrame, sample_size: int = 500, seed: int = RUN_SEED, load_provider=None):
         """Estimates the event-selector's false-negative rate on real data.
 
         Non-critical events never receive a physics solve in the streaming
         loop, so we can't know from cycle_df alone whether the selector missed
         any real violations. This draws a random sample of events the selector
         called non-critical and runs real AC power flow on them (replaying the
-        same per-event load multiplier used in the original streaming pass),
+        same per-event operating state used in the original streaming pass),
         to get an honest, sample-based estimate with a confidence interval.
         """
+        if load_provider is None:
+            load_provider = SyntheticLoadProvider(self.load_multipliers)
         noncritical = cycle_df[cycle_df["critical_event"] == False]
         rng = np.random.default_rng(seed)
         n = min(sample_size, len(noncritical))
@@ -401,8 +473,7 @@ class GridSimulator:
 
         converged_flags, violation_flags, vm_results = [], [], []
         for _, row in sample.iterrows():
-            mult_idx = int(hashlib.md5(f"{RUN_SEED}_{int(row['event_idx'])}".encode()).hexdigest(), 16) % len(self.load_multipliers)
-            self.physics.set_dynamic_load(self.load_multipliers[mult_idx])
+            self.physics.set_dynamic_load(load_provider.get_multiplier(int(row["event_idx"])))
             result = self.physics.solve_reference(row["load_mw"])
             converged_flags.append(result.converged)
             vm_results.append(result.min_vm_pu)
@@ -496,7 +567,6 @@ class GridSimulator:
         ax1.legend(fontsize=8, loc="best")
         fig1.tight_layout()
         fig1.savefig(os.path.join(OUTPUT_DIR, "Voltage_Stability.png"))
-        plt.show()
         plt.close(fig1)
 
         fig2, ax2 = plt.subplots(figsize=(6.2, 3.4))
@@ -507,7 +577,6 @@ class GridSimulator:
         ax2.set_ylabel("Million Ops/Sec")
         fig2.tight_layout()
         fig2.savefig(os.path.join(OUTPUT_DIR, "Scalability.png"))
-        plt.show()
         plt.close(fig2)
 
         fig4, ax4 = plt.subplots(figsize=(6.6, 3.4))
@@ -520,7 +589,6 @@ class GridSimulator:
         ax4.legend(fontsize=8)
         fig4.tight_layout()
         fig4.savefig(os.path.join(OUTPUT_DIR, "Cycle_Time_Trace.png"))
-        plt.show()
         plt.close(fig4)
 
 

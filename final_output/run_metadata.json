@@ -1,8 +1,8 @@
 {
   "platform": {
     "system": "Darwin",
-    "release": "25.5.0",
-    "version": "Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:17 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T8142",
+    "release": "25.6.0",
+    "version": "Darwin Kernel Version 25.6.0: Sat Jul 11 15:26:12 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T8142",
     "machine": "arm64",
     "processor": "arm",
     "python_implementation": "CPython",

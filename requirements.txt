@@ -7,3 +7,4 @@ seaborn==0.13.2
 pandapower==3.5.4
 numba==0.66.0
 llvmlite==0.48.0
+simbench==1.6.2
