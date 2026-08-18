@@ -1,10 +1,10 @@
 """
 Re-runs the E2 (default synthetic operating-state) recall audit and
-out-of-sample regression test at a larger sample size, for direct,
-equal-footing comparison with the severity-sweep points (1.5x, 1.75x),
-which needed n=4500 for adequate statistical power. Mirrors
-run_severity_recall_audit.py's methodology exactly, using
-SyntheticLoadProvider instead of ScaledLoadProvider.
+out-of-sample regression test, on equal footing with the severity-sweep
+points (1.5x, 1.75x): by default, a full census of the 16,676-event
+non-critical population, eliminating sampling uncertainty from the
+false-negative rate. Mirrors run_severity_recall_audit.py's methodology
+exactly, using SyntheticLoadProvider instead of ScaledLoadProvider.
 
 Usage
 -----
@@ -35,6 +35,7 @@ def main():
 
     print(f"E2 (default synthetic operating-state), sample_size={SAMPLE_SIZE}")
 
+    # 1. Full streaming pipeline -> critical-path violations
     cycle_df = simulator.run_streaming_pipeline(stream, load_provider=provider)
     critical = cycle_df[cycle_df["critical_event"] == True]
     solved = critical.dropna(subset=["raw_vm_ref_pu"])
@@ -42,6 +43,7 @@ def main():
     n_violations_critical = int((solved["raw_vm_ref_pu"] < VOLTAGE_MIN_PU).sum())
     print(f"Critical-path: {n_critical} events, {n_violations_critical} confirmed violations")
 
+    # 2. Real recall audit (by default, full census of non-critical events)
     sample_df, recall_summary_df = simulator.run_recall_audit(cycle_df, sample_size=SAMPLE_SIZE, load_provider=provider)
     recall_row = recall_summary_df.iloc[0]
     print(f"Recall audit: {int(recall_row['sample_violations_found'])} violations in "
@@ -56,6 +58,7 @@ def main():
     print(f"Estimated total violation population: {est_total_violations:.0f}; "
           f"magnitude-only recall: {baseline_recall*100:.1f}%")
 
+    # 3. Refit regression fresh on E2's critical-path data (70/30 split)
     solved = solved.copy()
     solved["multiplier"] = solved["event_idx"].apply(lambda i: provider.get_multiplier(int(i)))
     rng = np.random.default_rng(RUN_SEED)
@@ -80,6 +83,7 @@ def main():
     print(f"Regression: V ~ {intercept:.4f} + {b_mult:.4f}*mult + {b_load:.4f}*P_load, "
           f"held-out R^2 = {r2_test:.4f} (n_train={len(train)}, n_test={len(test)})")
 
+    # 4. Apply regression out-of-sample to the recall sample
     sample_df = sample_df.copy()
     sample_df["multiplier"] = sample_df["event_idx"].apply(lambda i: provider.get_multiplier(int(i)))
     sample_df["v_pred"] = predict(sample_df["multiplier"], sample_df["load_mw"])

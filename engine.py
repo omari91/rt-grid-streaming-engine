@@ -477,6 +477,12 @@ class GridSimulator:
         called non-critical and runs real AC power flow on them (replaying the
         same per-event operating state used in the original streaming pass),
         to get an honest, sample-based estimate with a confidence interval.
+
+        sample_size=500 here is only a convenience default for quick/exploratory
+        calls; it was never statistically justified and is NOT what the paper's
+        reported numbers use. All reported results call this with the full
+        non-critical population (16,676) for a zero-sampling-uncertainty census
+        -- see run_severity_recall_audit.py / run_e2_recall_audit.py.
         """
         if load_provider is None:
             load_provider = SyntheticLoadProvider(self.load_multipliers)
