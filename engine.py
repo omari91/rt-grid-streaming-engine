@@ -316,6 +316,21 @@ class TimeSeriesLoadProvider:
         return float(self.values[idx % len(self.values)])
 
 
+class ScaledLoadProvider:
+    """Wraps a real, representative load-shape source (e.g. SimBench) and
+    applies a single, explicit severity multiplier on top of it, uniformly.
+    Used to find the onset-of-violation severity for this network under a
+    real load shape, swept transparently rather than borrowed from a
+    third-party curation (Sec. Limitations)."""
+
+    def __init__(self, base_provider, severity: float):
+        self.base_provider = base_provider
+        self.severity = severity
+
+    def get_multiplier(self, idx: int) -> float:
+        return self.base_provider.get_multiplier(idx) * self.severity
+
+
 class GridSimulator:
     def __init__(self):
         self.prop_ctrl = VoltageAwareController(DER_CAPACITY_MW)
