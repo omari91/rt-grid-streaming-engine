@@ -41,6 +41,7 @@ VOLTAGE_TARGET_PU = 0.91
 PF_Q_RATIO = 0.33
 DEFAULT_STREAM_N = 500
 OP_DEADLINE_MS = 20.0
+CALIBRATION_FRACTION = 0.10  # initial stream window used to fit selector thresholds, then frozen
 
 
 def _pkg_version(name: str) -> str:
@@ -136,16 +137,26 @@ class LocalCsvIngestionLayer:
 
 
 class OnlineSmartSelector:
-    """Flags fat-tail or sharp-ramp events for high-fidelity handling."""
+    """Flags high-magnitude or sharp-ramp events for high-fidelity handling.
 
-    def __init__(self, historical_data: np.ndarray):
-        self.p95 = np.percentile(historical_data, 95)
-        self.p05 = np.percentile(historical_data, 5)
-        diffs = np.diff(historical_data)
+    Thresholds are fit once from an initial calibration window (the first
+    CALIBRATION_FRACTION of the stream) and then frozen -- not recomputed
+    from the full stream, which would let the selector implicitly condition
+    on future events relative to any point in its own operational history.
+    Magnitude-only (95th percentile), not a two-sided band: with direction
+    discarded during the redispatch-to-generator mapping (Sec. Dataset),
+    the event stream is a non-negative magnitude series, and a lower-tail
+    threshold on it has no clear physical meaning -- dropped in favour of
+    a single high-magnitude threshold plus the rate-of-change check.
+    """
+
+    def __init__(self, calibration_data: np.ndarray, percentile: float = 95):
+        self.p95 = np.percentile(calibration_data, percentile)
+        diffs = np.diff(calibration_data)
         self.rocof_thresh = float(np.std(diffs) * 1.2) if len(diffs) else 0.0
 
     def is_critical(self, cur: float, prev: float) -> bool:
-        if cur > self.p95 or cur < self.p05:
+        if cur > self.p95:
             return True
         if abs(cur - prev) > self.rocof_thresh:
             return True
@@ -355,10 +366,20 @@ class GridSimulator:
             1.20, 1.05, 0.81, 0.44
         ])
 
-    def run_streaming_pipeline(self, stream: np.ndarray, load_provider=None):
+    def run_streaming_pipeline(self, stream: np.ndarray, load_provider=None, selector_percentile: float = 95):
         if load_provider is None:
             load_provider = SyntheticLoadProvider(self.load_multipliers)
-        selector = OnlineSmartSelector(stream)
+        calibration_n = max(1, int(len(stream) * CALIBRATION_FRACTION))
+        selector = OnlineSmartSelector(stream[:calibration_n], percentile=selector_percentile)
+
+        # Warm up the AC solver's JIT-compiled kernels (internal to pandapower,
+        # not this codebase) before timing begins, so the one-time compile cost
+        # is reported separately (self.jit_warmup_ms) rather than misattributed
+        # to whichever real critical event happens to run first.
+        t_warmup = time.perf_counter()
+        self.physics.solve_reference(0.0)
+        self.jit_warmup_ms = (time.perf_counter() - t_warmup) * 1e3
+
         records = []
         prev = float(stream[0]) if len(stream) else 0.0
 
