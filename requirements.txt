@@ -8,3 +8,4 @@ pandapower==3.5.4
 numba==0.66.0
 llvmlite==0.48.0
 simbench==1.6.2
+scikit-learn==1.9.0

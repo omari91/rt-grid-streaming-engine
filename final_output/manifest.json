@@ -1,0 +1,52 @@
+{
+  "description": "Manifest mapping output files to scenario parameters and script provenance.",
+  "outputs": [
+    {
+      "file": "audit_summary.csv",
+      "script": "run_e2_recall_audit.py",
+      "scenario": "E2 (synthetic hashed load, default)",
+      "parameters": {
+        "sample_size": 16676,
+        "load_provider": "SyntheticLoadProvider",
+        "seed": 42
+      },
+      "notes": "Full non-critical population recall audit, default pipeline."
+    },
+    {
+      "file": "severity_recall_audit_1.50x.csv",
+      "script": "run_severity_recall_audit.py",
+      "scenario": "SimBench shape, scaled 1.50x",
+      "parameters": {
+        "severity": 1.50,
+        "sample_size": 16676,
+        "load_provider": "ScaledLoadProvider(TimeSeriesLoadProvider)",
+        "seed": 42
+      },
+      "notes": "Full recall audit at 1.50x documented peak."
+    },
+    {
+      "file": "severity_recall_audit_1.75x.csv",
+      "script": "run_severity_recall_audit.py",
+      "scenario": "SimBench shape, scaled 1.75x",
+      "parameters": {
+        "severity": 1.75,
+        "sample_size": 16676,
+        "load_provider": "ScaledLoadProvider(TimeSeriesLoadProvider)",
+        "seed": 42
+      },
+      "notes": "Full recall audit at 1.75x documented peak."
+    },
+    {
+      "file": "threshold_sensitivity.csv",
+      "script": "run_threshold_sensitivity.py",
+      "scenario": "E2 (synthetic hashed load, default)",
+      "parameters": {
+        "percentiles": [90, 93, 95, 97, 99],
+        "sample_size": 16676,
+        "load_provider": "SyntheticLoadProvider",
+        "seed": 42
+      },
+      "notes": "Selector threshold sweep, full recall audit at each point."
+    }
+  ]
+}
