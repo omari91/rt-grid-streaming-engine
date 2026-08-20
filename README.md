@@ -38,7 +38,7 @@ See `paper.tex` for the full methodology, results, and honestly-reported limitat
 
 ## Prerequisites
 
-- Python 3.8+ (developed and tested on 3.13)
+- Python 3.8+ (developed and tested on 3.13 and 3.14)
 - Operating System: Windows, macOS, or Linux
 - The real dataset at `data/redispatch_1yr.csv` (a synthetic Beta-distributed fallback is used automatically if this file is absent, but results will not match the paper)
 
@@ -51,27 +51,78 @@ See `paper.tex` for the full methodology, results, and honestly-reported limitat
    cd rt-grid-streaming-engine
    ```
 
-2. **Install pinned dependencies:**
+2. **Create and activate a local Python virtual environment (recommended):**
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+    ```bash
+    python3 -m venv .venv
+    source .venv/bin/activate  # On Windows use: .venv\Scripts\activate
+    ```
 
-3. **Run the pipeline:**
+3. **Install pinned dependencies (including scikit-learn) inside the venv:**
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4. **Run the pipeline:**
 
    ```bash
    python main.py
    ```
 
-   *Outputs (audit summary, recall audit, latency tables, figures, and a reproducibility header with pinned versions + input data hash) are saved to `final_output/`.*
+   *Outputs (audit summary, recall audit, latency tables, regression results, figures, and a reproducibility header with pinned versions + input data hash) are saved to `final_output/`.*
 
-4. **(Optional) Run the operating-state experiment matrix (E1–E4):**
+5. **(Optional) Run the operating-state experiment matrix (E1–E4):**
 
    ```bash
    python run_experiment_matrix.py
    ```
 
    *Runs the same event stream and pipeline under all four operating-state models (fixed, synthetic, SimBench i.i.d., SimBench time-series) and saves a per-experiment comparison (`final_output/experiment_matrix.csv`), including violation counts, sampled recall, latency percentiles, and the loading-vs-voltage / redispatch-vs-voltage correlations for each.*
+
+
+6. **Run the regression experiment:**
+
+   ```bash
+   python regression.py
+   ```
+
+   *This will run a linear regression on voltage data using scikit-learn. Results (metrics) will be printed to the console. Ensure all dependencies are installed as per requirements.txt.*
+## Output Manifest
+
+All experiment outputs are tracked in [`final_output/manifest.json`](final_output/manifest.json), which maps each output file to its generating script, scenario parameters, and provenance. This includes regression, recall audit, severity sweep, and threshold sensitivity results. See the manifest for detailed mapping of outputs to scenarios and scripts.
+# Reproducible Experiments with Docker
+
+## Quick Start (Docker)
+
+1. **Build the Docker image:**
+   ```sh
+   docker build -t grid-audit-repro .
+   ```
+
+2. **Run the main experiment:**
+   ```sh
+   docker run --rm grid-audit-repro
+   ```
+   This will execute `python run_experiment_matrix.py` inside the container and generate all experiment outputs, saving them to `final_output/experiment_matrix.csv`.
+
+3. **Persist output files to your host machine:**
+   ```sh
+   docker run --rm -v "$PWD/final_output:/app/final_output" grid-audit-repro
+   ```
+   This mounts your local `final_output` directory to the container, so outputs are written directly to your host.
+
+4. **Override the command to run any other script:**
+   ```sh
+   docker run --rm grid-audit-repro python regression.py
+   docker run --rm grid-audit-repro python run_severity_sweep.py
+   ```
+   Replace the script name as needed to run other analyses.
+
+---
+
+This setup ensures full reproducibility and portability of your experiments. All dependencies and the Python version are frozen in the Docker image, minimizing environmental differences.
+
 
 ## Citation
 
