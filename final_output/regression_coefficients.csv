@@ -1,0 +1,2 @@
+experiment,intercept,coef_multiplier,coef_load_mw,r2_train,r2_test,n_train,n_test,corr_voltage_multiplier,corr_voltage_load_mw,fitting_library,cross_check_of
+E2,1.0378837063191015,-0.11039134756554592,0.010011701691838846,0.9922386005617932,0.9917744253813146,2838,1217,-0.9945375559641497,0.05625741894356583,scikit-learn==1.9.0,run_e2_recall_audit.py (numpy.linalg.lstsq)
