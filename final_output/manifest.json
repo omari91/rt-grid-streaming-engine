@@ -47,6 +47,19 @@
         "seed": 42
       },
       "notes": "Selector threshold sweep, full recall audit at each point."
+    },
+    {
+      "file": "regression_coefficients.csv",
+      "script": "regression.py",
+      "scenario": "All three severities reported in Table tab:sensitivity (E2/1.26x, 1.50x, 1.75x)",
+      "parameters": {
+        "severities": [1.26, 1.50, 1.75],
+        "sample_size": 16676,
+        "load_provider": "SyntheticLoadProvider (E2) / ScaledLoadProvider(TimeSeriesLoadProvider) (1.50x, 1.75x)",
+        "seed": 42,
+        "fitting_library": "scikit-learn==1.9.0"
+      },
+      "notes": "One row per severity: fitted V ~ intercept + coef_multiplier*multiplier + coef_load_mw*P_load, train/test R^2, n_train/n_test, and raw correlations. Cross-checked against regression_r2_test already saved in audit_summary.csv / severity_recall_audit_*.csv for each severity -- all three matched."
     }
   ]
 }
