@@ -1,0 +1,2 @@
+severity,n_critical,n_violations_critical,sample_size,sample_violations_found,estimated_fn_rate,estimated_fn_rate_ci95_low,estimated_fn_rate_ci95_high,estimated_total_violations,baseline_recall_pct,regression_r2_test,regression_n_caught,regression_catch_rate_pct,regression_catch_rate_ci95_low,regression_catch_rate_ci95_high
+1.75,4055,495,16531,2230,0.16625661671512712,0.1600516212889821,0.17265272440379725,3243.3881309177664,15.261818198117785,0.8203167195952614,2230,100.0,99.828033506786,99.99999999999997

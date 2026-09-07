@@ -1,0 +1,33 @@
+{
+  "platform": {
+    "system": "Darwin",
+    "release": "25.6.0",
+    "version": "Darwin Kernel Version 25.6.0: Fri Jul 31 19:16:20 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T8142",
+    "machine": "arm64",
+    "processor": "arm",
+    "python_implementation": "CPython",
+    "python_version": "3.13.14",
+    "executable": "/Users/cliffordondieki/Coding/rt-grid-streaming-engine/.venv/bin/python"
+  },
+  "packages": {
+    "numpy": "2.4.6",
+    "pandas": "2.3.3",
+    "scipy": "1.18.0",
+    "pandapower": "3.5.4",
+    "matplotlib": "3.11.1",
+    "seaborn": "0.13.2"
+  },
+  "experiment": {
+    "seed": 42,
+    "stream_n": 20586,
+    "global_trafo_limit_mw": 45.0,
+    "voltage_min_pu": 0.9,
+    "voltage_target_pu": 0.91,
+    "pf_q_ratio": 0.33,
+    "deadline_ms": 20.0
+  },
+  "data": {
+    "path": "data/redispatch_1yr.csv",
+    "sha256": "6b60bbd732b77a6f12ed61b1f1b9188462023f0787952964345bf18166a476bb"
+  }
+}

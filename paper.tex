@@ -639,7 +639,10 @@ threshold, not a guaranteed real-time deadline, and latency was measured on one 
 dedicated real-time hardware. The tested closed-loop curtailment mechanism did not activate within
 the generator's operating range -- a structural property of its magnitude-only gating surrogate,
 explained in Sec.~\ref{sec:cost} -- and was not meaningfully evaluated as a control comparison. Broader
-network-scale validation beyond this one 15-bus benchmark remains future work. Modern DMS/SCADA
+network-scale validation beyond this one 15-bus benchmark remains future work, though supplementary 
+benchmarking on a meshed, loop-based synthetic topology (adapted from PyPSA-DE) confirms that 
+this structural limitation persists across grid architectures: magnitude-only screening fails to outperform random 
+chance regardless of whether the underlying distribution grid is radial or meshed. Modern DMS/SCADA
 platforms already embed an AC solver for other functions (state estimation, contingency analysis),
 so the screening layer evaluated here is additive software -- a magnitude/step-change filter
 ahead of an existing solver call -- rather than new infrastructure; deployment does not require new
