@@ -296,6 +296,92 @@ def load_simbench_profile(column: str = "G0-A_pload", scenario: int = 0) -> np.n
     return profiles[column].to_numpy()
 
 
+# Documented network peak used to normalize the real CIGRE seasonal data below into
+# per-unit-of-peak multipliers, on the same basis as this paper's E1 baseline and E2's
+# curated 1.26x severity: pandapower create_cigre_network_mv().net.load.p_mw.sum(),
+# which reproduces Rudion et al. 2006's (ref:rudion2006) documented Table I peak-load
+# specification (verified node-by-node against pandapower's defaults).
+CIGRE_DOCUMENTED_PEAK_MW = 44.742
+
+
+def _load_cigre_node_matrix(path: str) -> np.ndarray:
+    """Real per-node hourly active-power consumption (CIGRE nodes x hours) from
+    CarlosGS20/Typical-load-profile-MV-CIGRE-benchmark (reference.bib: ref:carlosgs2020),
+    built from Porsinger et al. 2017's (ref:porsinger2017) seasonal profiles. Returns the
+    raw per-node matrix; callers sum across nodes for the network-wide aggregate."""
+    df = pd.read_csv(path)
+    return df.drop(columns=df.columns[0]).to_numpy()
+
+
+def load_cigre_seasonal_profile(season: str) -> np.ndarray:
+    """Real, non-curated seasonal operating-state multiplier (per unit of
+    CIGRE_DOCUMENTED_PEAK_MW) for the E5 seasonal-robustness check (paper.tex Sec. "Does
+    This Survive Independent Load Data?"). `season` is 'winter' or 'transition'. Unlike E2's
+    table (CarlosGS20 "5-days test case", curated to produce overloads, and confirmed by
+    that repository's own README to be winter-only), this data comes from CarlosGS20's "Two
+    seasonal scenarios of 3-days test case" -- ordinary representative data, not curated for
+    violations. Data: data/cigre_seasonal/Active_Node_Consumption_{season}.csv."""
+    path = os.path.join("data", "cigre_seasonal", f"Active_Node_Consumption_{season.lower()}.csv")
+    matrix = _load_cigre_node_matrix(path)
+    return matrix.sum(axis=0) / CIGRE_DOCUMENTED_PEAK_MW
+
+
+def build_full_year_seasonal_multiplier(redispatch_csv_path: str) -> np.ndarray:
+    """Real, full-year, calendar-following operating-state multiplier for the E6 check
+    (paper.tex Sec. "Does This Survive Independent Load Data?"): every real event in
+    redispatch_csv_path is assigned its own real season from its real calendar month
+    (Winter=Dec/Jan/Feb, Summer=Jun/Jul/Aug, else Transition -- the same 3-way split
+    CarlosGS20/Porsinger et al. use) and its own real hour-of-day, then stepped through that
+    season's real 5-day CIGRE profile from CarlosGS20's "15-days typical year test case"
+    (data/cigre_seasonal/Active_Node_Consumption_15day_full.csv: 360 real hourly values,
+    ordered Transition/Winter/Summer per that directory's own README).
+
+    Which of the 5 template days within a season applies is assigned by a running
+    per-season calendar-day counter modulo 5 (the Nth distinct real date seen in that
+    season, across the whole year) -- NOT a claimed real weekday/Saturday/Sunday alignment,
+    which this data does not unambiguously support (checked directly: within the Winter
+    block, days 0 and 2 are byte-identical, consistent with a repeated "weekday" template
+    but not sufficient on its own to label the remaining days). Stated plainly as a
+    modelling choice, not a verified calendar fact.
+
+    Returned array is aligned 1:1 with LocalCsvIngestionLayer.fetch_stream()'s row order
+    (same source CSV, same row order, no filtering in either)."""
+    full_year_path = os.path.join("data", "cigre_seasonal", "Active_Node_Consumption_15day_full.csv")
+    matrix = _load_cigre_node_matrix(full_year_path)
+    agg = matrix.sum(axis=0)
+    season_bounds = {"Transition": (0, 120), "Winter": (120, 240), "Summer": (240, 360)}
+    season_tables = {s: agg[lo:hi] / CIGRE_DOCUMENTED_PEAK_MW for s, (lo, hi) in season_bounds.items()}
+
+    df = pd.read_csv(redispatch_csv_path, sep=";")
+    dt = pd.to_datetime(df["BEGINN_DATUM"] + " " + df["BEGINN_UHRZEIT"], format="%d.%m.%Y %H:%M")
+
+    def month_to_season(month: int) -> str:
+        if month in (12, 1, 2):
+            return "Winter"
+        if month in (6, 7, 8):
+            return "Summer"
+        return "Transition"
+
+    seasons = dt.dt.month.map(month_to_season)
+    day_in_cycle = np.zeros(len(df), dtype=int)
+    for season in season_tables:
+        mask = (seasons == season).to_numpy()
+        seen = {}
+        cycle_vals = []
+        for d in dt[mask].dt.date:
+            if d not in seen:
+                seen[d] = len(seen)
+            cycle_vals.append(seen[d] % 5)
+        day_in_cycle[mask] = cycle_vals
+
+    hours = dt.dt.hour.to_numpy()
+    multiplier = np.empty(len(df))
+    for season, table in season_tables.items():
+        mask = (seasons == season).to_numpy()
+        multiplier[mask] = table[day_in_cycle[mask] * 24 + hours[mask]]
+    return multiplier
+
+
 class EmpiricalSampledLoadProvider:
     """Real SimBench load values drawn i.i.d. (with replacement), seeded by
     run seed and event index, breaking any correlation with event order.
@@ -349,7 +435,19 @@ class GridSimulator:
         self.droop_ctrl = DroopController(DER_CAPACITY_MW, k_mw_per_pu=20.0)
         self.physics = PhysicsEngine()
         
-        # Empirical daily load multipliers derived from the Typical Load Profile benchmark (Winter Scenario A)
+        # Empirical daily load multipliers derived from the Typical Load Profile benchmark
+        # (Winter Scenario A) -- CarlosGS20/Typical-load-profile-MV-CIGRE-benchmark
+        # (ref:carlosgs2020) "5-days test case", curated by that repository to produce
+        # network overloads and voltage-limit problems; confirmed winter-only directly from
+        # that repository's own README ("This case is based on winter consumption
+        # profiles"). This is E2's main-study default table (paper.tex Sec. "Does This
+        # Survive Independent Load Data?"). Its seasonal robustness is checked in
+        # load_cigre_seasonal_profile() / build_full_year_seasonal_multiplier() below (E5/E6:
+        # real, non-curated winter/summer/transition data, including a full real-calendar-year
+        # check against every event in redispatch_1yr.csv) -- both find zero violations at
+        # native relative severity and an intact loading-dominates-magnitude mechanism,
+        # confirming E2's violations are attributable to its curated 26%-above-peak severity,
+        # not to season.
         self.load_multipliers = np.array([
             0.13, 0.11, 0.08, 0.06, 0.06, 0.08, 0.18, 0.38, 0.58, 0.77, 
             0.88, 0.94, 0.95, 0.91, 0.86, 0.82, 0.85, 1.05, 1.25, 1.26, 
@@ -621,16 +719,29 @@ class GridSimulator:
         fig2.savefig(os.path.join(OUTPUT_DIR, "Scalability.png"))
         plt.close(fig2)
 
+        # Empirical CDF of cycle time, critical vs. non-critical path -- replaces an earlier
+        # log-scale scatter trace (Sec. Computational Cost) that obscured how often the
+        # system approaches or misses the 20 ms deadline; a CDF makes the miss rate a single
+        # readable crossing point instead of requiring the reader to count sparse dots.
         fig4, ax4 = plt.subplots(figsize=(6.6, 3.4))
-        ax4.plot(cycle_df["event_idx"], cycle_df["cycle_time_ms"], color="#34495e", lw=0.6)
-        ax4.axhline(OP_DEADLINE_MS, color="#c0392b", ls=":", label="20 ms deadline")
-        ax4.set_yscale("log")
-        ax4.set_title("Cycle-Time Trace", fontweight="bold")
-        ax4.set_xlabel("Event Index")
-        ax4.set_ylabel("Cycle Time (ms, log scale)")
-        ax4.legend(fontsize=8)
+        for label, mask, color in [
+            ("Critical path", cycle_df["critical_event"] == True, "#c0392b"),
+            ("Non-critical path", cycle_df["critical_event"] == False, "#2980b9"),
+        ]:
+            times = np.sort(cycle_df.loc[mask, "cycle_time_ms"].to_numpy())
+            if len(times) == 0:
+                continue
+            cdf = np.arange(1, len(times) + 1) / len(times)
+            ax4.plot(times, cdf, color=color, lw=1.6, label=f"{label} (n={len(times)})")
+        ax4.axvline(OP_DEADLINE_MS, color="black", ls=":", label="20 ms deadline")
+        ax4.set_xscale("log")
+        ax4.set_title("Cycle-Time CDF by Path", fontweight="bold")
+        ax4.set_xlabel("Cycle Time (ms, log scale)")
+        ax4.set_ylabel("Cumulative Fraction of Events")
+        ax4.set_ylim(0, 1.02)
+        ax4.legend(fontsize=8, loc="lower right")
         fig4.tight_layout()
-        fig4.savefig(os.path.join(OUTPUT_DIR, "Cycle_Time_Trace.png"))
+        fig4.savefig(os.path.join(OUTPUT_DIR, "Cycle_Time_CDF.png"))
         plt.close(fig4)
 
 

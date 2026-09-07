@@ -1,14 +1,27 @@
 """
-Runs the E1-E4 operating-state experiment matrix requested in review and
+Runs the E1-E6 operating-state experiment matrix requested in review and
 writes final_output/experiment_matrix.csv.
 
 Each row applies the same real redispatch event stream and the same
 selector/validation pipeline; only the operating-state (load) model differs:
 
   E1  FixedLoadProvider           nominal CIGRE loads, no variation (control)
-  E2  SyntheticLoadProvider       deterministic hashed table (main-study default)
+  E2  SyntheticLoadProvider       deterministic hashed table (main-study default;
+                                  confirmed winter-only, curated for overloads --
+                                  see engine.py's load_multipliers comment)
   E3  EmpiricalSampledLoadProvider  real SimBench values, drawn i.i.d. per event
   E4  TimeSeriesLoadProvider      real SimBench values, in original time order
+  E5a TimeSeriesLoadProvider      real, non-curated winter CIGRE data (seasonal check)
+  E5b TimeSeriesLoadProvider      real, non-curated transition CIGRE data (seasonal check)
+  E6  TimeSeriesLoadProvider      real, full-year, calendar-following CIGRE seasonal data
+                                  (every event assigned its own real season/hour-of-day)
+
+E5/E6 close the "did you consider weather season" gap: E2's table is confirmed winter-only
+(CarlosGS20 repo's own README), so E5a/E5b test real non-curated winter/transition data in
+isolation, and E6 tests the full real year, calendar-correct, in one pass. All three find
+zero violations at native relative severity with the loading-dominates-magnitude mechanism
+intact, confirming E2's violations are attributable to its curated 26%-above-peak severity,
+not to season (paper.tex Sec. "Does This Survive Independent Load Data?").
 
 Usage
 -----
@@ -25,6 +38,8 @@ from engine import (
     EmpiricalSampledLoadProvider,
     TimeSeriesLoadProvider,
     load_simbench_profile,
+    load_cigre_seasonal_profile,
+    build_full_year_seasonal_multiplier,
     OUTPUT_DIR,
 )
 import os
@@ -86,11 +101,30 @@ def main():
     print(f"Loaded SimBench profile (G0-A_pload): n={len(simbench_vals)}, "
           f"min={simbench_vals.min():.4f}, max={simbench_vals.max():.4f}")
 
+    winter_vals = load_cigre_seasonal_profile("winter")
+    transition_vals = load_cigre_seasonal_profile("transition")
+    print(f"Loaded real, non-curated CIGRE winter profile: n={len(winter_vals)}, "
+          f"mean={winter_vals.mean():.4f}x, peak={winter_vals.max():.4f}x")
+    print(f"Loaded real, non-curated CIGRE transition profile: n={len(transition_vals)}, "
+          f"mean={transition_vals.mean():.4f}x, peak={transition_vals.max():.4f}x")
+
+    redispatch_csv_path = os.path.join("data", "redispatch_1yr.csv")
+    full_year_vals = build_full_year_seasonal_multiplier(redispatch_csv_path)
+    print(f"Built full-year, calendar-following seasonal multiplier: n={len(full_year_vals)}, "
+          f"mean={full_year_vals.mean():.4f}x, peak={full_year_vals.max():.4f}x")
+    assert len(full_year_vals) == len(stream), (
+        f"full-year multiplier length {len(full_year_vals)} != stream length {len(stream)} -- "
+        "build_full_year_seasonal_multiplier() must stay aligned 1:1 with fetch_stream()"
+    )
+
     experiments = {
         "E1_fixed": FixedLoadProvider(),
         "E2_synthetic": SyntheticLoadProvider(simulator.load_multipliers),
         "E3_simbench_iid": EmpiricalSampledLoadProvider(simbench_vals),
         "E4_simbench_timeseries": TimeSeriesLoadProvider(simbench_vals),
+        "E5a_real_winter_noncurated": TimeSeriesLoadProvider(winter_vals),
+        "E5b_real_transition_noncurated": TimeSeriesLoadProvider(transition_vals),
+        "E6_full_year_real_season": TimeSeriesLoadProvider(full_year_vals),
     }
 
     rows = []
