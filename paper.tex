@@ -651,6 +651,14 @@ already carry. The open question for an operator evaluating adoption is calibrat
 availability: the state-aware threshold would need re-fitting on a utility's own network and load
 data, closer in scope to an existing periodic load-flow planning study than to a new monitoring
 deployment, before being trusted operationally rather than transferred as-is from this benchmark.
+A supplementary sandbox experiment evaluating a background-load-aware threshold variant -- scaling
+the selector's $p_{95}$ threshold inversely with the observed load multiplier -- is included in
+\texttt{supplementary\_pypsa\_meshed\_grid/precision\_improvements/}. On the same CIGRE MV testbed,
+this variant raises combined recall from 15.5\% to 21.4\% and precision from 5.9\% to 10.0\%, with
+an E2 regression catch rate of 82.0\%; on the PyPSA-DE meshed topology the catch rate reaches
+100\%. These results confirm that the improvement ceiling described below is reachable once a
+real background-load signal is available from state estimation or SCADA, and that the gain comes
+entirely from the state signal -- not from changes to the event-magnitude component.
 
 \subsection{Conclusion}
 Event information alone is an insufficient screening proxy: it achieves 15.5\% recall at 5.9\%
@@ -671,7 +679,12 @@ ceiling on improvement is set by conditioning on operating state directly, which
 regression already demonstrates (up to 78.6\% overall recall under severe stress); closing that
 gap operationally requires the real state measurement discussed in Sec.~\ref{sec:limitations}
 (state estimation, SCADA, or smart-meter-based sensitivity estimation \cite{ref:valverde2018}), not
-a better event-only rule.
+a better event-only rule. A supplementary evaluation of a background-load-aware dynamic threshold
+(\texttt{supplementary\_pypsa\_meshed\_grid/precision\_improvements/}) confirms this prediction
+experimentally: recall rises to 21.4\% and precision to 10.0\% on the CIGRE MV testbed,
+with an E2 catch rate of 82\%, and the gain is attributable entirely to the background-load signal
+rather than to any change in event-magnitude logic -- consistent with the mechanism identified in
+Sec.~\ref{sec:why_fails}.
 
 Selective AC validation is computationally inexpensive on the tested platform (0.025\%
 software-latency threshold exceedance rate, JIT cost isolated, tail-latency mitigations discussed in

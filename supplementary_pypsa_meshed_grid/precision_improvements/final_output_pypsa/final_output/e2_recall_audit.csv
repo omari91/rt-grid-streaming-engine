@@ -1,0 +1,2 @@
+experiment,sample_size,n_critical,n_violations_critical,sample_violations_found,estimated_fn_rate,estimated_total_violations,baseline_recall_pct,regression_r2_test,regression_n_caught,regression_catch_rate_pct,regression_catch_rate_ci95_low,regression_catch_rate_ci95_high
+E2,16676,3849,475,1553,0.09518847686178364,2068.1695372356726,22.967169347000816,0.5783687762494996,1553,100.0,99.75325304969691,100.0

@@ -14,20 +14,25 @@ The results definitively confirm the core thesis of the paper: **magnitude-only 
 
 Because power flows through multiple paths in a meshed topology, the *location* and *background state* of an event dictates voltage drop far more than the raw *magnitude* of the injection. 
 
-### 1. PyPSA-DE MV (20kV) Results
-When the PyPSA-DE grid was scaled to 20kV (Medium Voltage) and stressed to provoke physical limits, the simulation produced `~405` critical-path voltage violations.
+### 1. PyPSA-DE HV Transmission Grid Results
+In the transmission grid, the voltage is extremely stiff. Even massive MW injections rarely cause voltage violations unless the entire grid is under intense, unrealistic stress (5x background load).
 
-| Rule | Recall | Precision |
-|------|--------|-----------|
-| **Magnitude-only ($>p_{95}$)** | 7.96% | 9.95% |
-| **Step-change-only** | 17.75% | 10.04% |
-| **Combined (As Shipped)** | 19.92% | 9.98% |
-| **Random Baseline (Budget-Matched)** | **19.68%** | **9.86%** |
+| Selector | Flagged Events | True Violations Caught | Recall | Precision |
+|----------|----------------|------------------------|--------|-----------|
+| **Random Baseline** | 4,055 | 953 | 19.7% | 23.5% |
+| **Combined (Proposed)** | 4,055 | 725 | 14.9% | 17.8% |
+
+On the HV grid, the proposed selector actually performs worse than random guessing.
+
+### 2. PyPSA-DE MV Distribution Grid Results
+By scaling PyPSA down to 20kV, reducing line lengths to 2-15km, and restoring the 1/1000 scaling on the telemetry data, we accurately simulated a distribution grid. The grid exhibited 405 physical violations under an automatic 4.0x stress multiplier.
+
+| Selector | Flagged Events | True Violations Caught | Recall | Precision |
+|----------|----------------|------------------------|--------|-----------|
+| **Random Baseline** | 4,055 | 400 | 19.68% | 9.8% |
+| **Combined (Proposed)** | 4,055 | 405 | 19.92% | 9.9% |
 
 *Conclusion:* The magnitude-only selector performs identically to tossing a coin. 90% of the AC solves it triggers are wasted on false alarms.
-
-### 2. PyPSA-DE HV (380kV) Results
-The identical pattern held on the native 380kV High Voltage grid. The magnitude-only selector was completely uninformative, and violations were driven strictly by grid topology and background loading rather than the size of the redispatch event.
 
 ## Repository Organization
 

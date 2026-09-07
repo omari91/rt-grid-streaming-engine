@@ -1,0 +1,2 @@
+experiment,n_events,n_critical,n_violations,n_solver_failures,sampled_fn_rate,estimated_recall,nr_calls_critical_path,median_latency_ms,p95_latency_ms,p99_latency_ms,deadline_miss_rate,r_load_vs_voltage,r_redispatch_vs_voltage
+E6_full_year_real_season,20586,4055,0,0,0.0,,4055,5.114958999911323,5.3301125997677445,5.535232002730481,0.0002466091245376079,-0.9722631423412961,0.198467623990729
