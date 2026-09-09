@@ -1,0 +1,3 @@
+experiment,n_events,n_critical,n_violations,n_solver_failures,sampled_fn_rate,estimated_recall,nr_calls_critical_path,median_latency_ms,p95_latency_ms,p99_latency_ms,deadline_miss_rate,r_load_vs_voltage,r_redispatch_vs_voltage
+E5a_real_winter_noncurated,20586,3601,0,0,0.0,,3601,4.540415997325908,4.6679169972776435,4.835542000364512,0.00027770063871146905,-0.35803774587496673,-0.03676790729914276
+E5b_real_transition_noncurated,20586,3601,0,0,0.0,,3601,4.552833997877315,4.7182909984258,5.16112500190502,0.00027770063871146905,-0.35993900822567515,-0.021101938032307206

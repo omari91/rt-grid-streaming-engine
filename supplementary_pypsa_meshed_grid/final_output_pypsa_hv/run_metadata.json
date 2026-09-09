@@ -2,12 +2,12 @@
   "platform": {
     "system": "Darwin",
     "release": "25.6.0",
-    "version": "Darwin Kernel Version 25.6.0: Sat Jul 11 15:26:12 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T8142",
+    "version": "Darwin Kernel Version 25.6.0: Fri Jul 31 19:16:20 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T8142",
     "machine": "arm64",
     "processor": "arm",
     "python_implementation": "CPython",
     "python_version": "3.13.14",
-    "executable": "/Users/cliffordondieki/Coding/rt-grid-streaming-engine/.venv/bin/python3"
+    "executable": "/Users/cliffordondieki/Coding/rt-grid-streaming-engine/.venv/bin/python"
   },
   "packages": {
     "numpy": "2.4.6",

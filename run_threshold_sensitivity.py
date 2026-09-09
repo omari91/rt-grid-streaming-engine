@@ -34,7 +34,7 @@ def main():
         n_critical = len(critical)
         tp = int((solved["raw_vm_ref_pu"] < 0.90).sum())
 
-        _, recall_summary_df = simulator.run_recall_audit(cycle_df, sample_size=16676, load_provider=provider)
+        _, recall_summary_df = simulator.run_recall_audit(cycle_df, sample_size=len(cycle_df), load_provider=provider)
         recall_row = recall_summary_df.iloc[0]
         fn = int(recall_row["sample_violations_found"])
 
