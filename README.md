@@ -124,6 +124,20 @@ All experiment outputs are tracked in [`final_output/manifest.json`](final_outpu
 This setup ensures full reproducibility and portability of your experiments. All dependencies and the Python version are frozen in the Docker image, minimizing environmental differences.
 
 
-## Citation
+## 📚 Publication
 
-If you use this code in your research, please consider citing our work. The full citation for the corresponding IEEE paper will be added upon publication.
+This repository accompanies the following research contribution:
+
+* **Ondieki, C. O., & Lu, T. (2026).** *In a CIGRE MV Benchmark Redispatch Audit, Operating State Dominates Event Magnitude for Voltage-Limit Violations.* IEEE 2026 International Conference on Emerging Trends in Engineering and Computing (ETECOM), Paris, France, 26–27 October 2026. **In Press**
+
+```bibtex
+@inproceedings{ondieki_lu_2026_voltage,
+  author    = {Ondieki, Clifford O. and Lu, Tianxiang},
+  title     = {In a CIGRE MV Benchmark Redispatch Audit, Operating State Dominates Event Magnitude for Voltage-Limit Violations},
+  booktitle = {IEEE 2026 International Conference on Emerging Trends in Engineering and Computing (ETECOM)},
+  year      = {2026},
+  address   = {Paris, France},
+  month     = oct,
+  note      = {In press, 26--27 October 2026}
+}
+```
